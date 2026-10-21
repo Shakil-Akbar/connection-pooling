@@ -1,0 +1,54 @@
+Mock database on 127.0.0.1:35963  handshake=25ms  max_connections=20  wait_timeout=2.0s
+
+==============================================================================
+1. Direct connections vs pool: 200 sequential queries
+==============================================================================
+direct     total  5587.1 ms   per query    27.9 ms   distinct connections  200
+pooled     total   348.9 ms   per query     1.7 ms   distinct connections    1
+server (direct): accepted=200 active=0 peak=1 refused=0
+server (pooled): accepted=1 active=1 peak=1 refused=0
+=> pool was 16.0x faster; one connection was reused for all 200 queries (a single thread only ever needs one)
+
+==============================================================================
+2. Pool limits under a burst: 60 concurrent requests, server max 20
+==============================================================================
+direct:  ok=20 refused=40   server: accepted=20 active=0 peak=20 refused=40
+pooled:  ok=60 timeout= 0  server: accepted=10 active=10 peak=10 refused=0   wall   890.5 ms
+monitor: pool.size=10 available=10 idle=10
+=> the pool caps the database at 10 connections; the other 50 requests queue in the app (backpressure) instead of being refused by the server
+
+==============================================================================
+3. Checkout timeout: pool size 2, timeout 0.3s, 5 requests each holding 1s
+==============================================================================
++   27 ms  request 0  acquired connection 11
++   57 ms  request 1  acquired connection 12
++  321 ms  request 2  TIMEOUT  ConnectionPool::TimeoutError: Waited 0.3 sec, 0/2 available
++  331 ms  request 3  TIMEOUT  ConnectionPool::TimeoutError: Waited 0.3 sec, 0/2 available
++  341 ms  request 4  TIMEOUT  ConnectionPool::TimeoutError: Waited 0.3 sec, 0/2 available
++ 1029 ms  request 0  released
++ 1057 ms  request 1  released
+=> two requests got a connection; the rest failed fast after 0.3s instead of waiting forever. That error is the signal to shed load or retry with backoff.
+
+==============================================================================
+4. Stale connections and validation (server wait_timeout 2.0s)
+==============================================================================
+warm up: connection 13 answered ROW 13
+sleeping 2.5s so the server closes the idle pooled connection...
+without validation: DbClient::ConnectionLost: server has gone away (connection 13)
+with validation:    verify! reconnected (reconnects=1), now on connection 14, answered ROW 14
+idle reaping: idle=1 before reap
+idle reaping: idle=0 after reap(idle_seconds: 0.1), the next checkout opens a fresh connection
+=> validate on checkout (or reap idle connections before the server's timeout) so requests never receive a dead socket
+
+==============================================================================
+5. Transaction and session state leaking between borrowers (pool size 1)
+==============================================================================
+naive pool:
+request A: boom: request A crashed mid transaction
+request B: connection 15  TX open  tenant_id=42
+pool with reset on release:
+request A: boom: request A crashed mid transaction
+request B: connection 16  TX none  tenant_id=NULL
+=> a pool must hand out connections in a known clean state: roll back open transactions and reset session state on release
+
+Done.

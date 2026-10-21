@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connection Pooling Visualized</title>
+<style>
+:root {
+  --bg: #f4f7f6; --panel: #ffffff; --ink: #12343b; --muted: #5b7076; --line: #d7e4e1;
+  --teal: #1f7a6d; --teal-soft: #d6ece8; --amber: #e89b2d; --amber-soft: #fbead0; --amber-ink: #8a5300;
+  --red: #d9502b; --red-soft: #f9dcd3; --green: #2e9b5f; --green-soft: #d7f0e1;
+  --gray: #9aa9ad; --gray-soft: #eceff0;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 26px; margin: 0 0 4px; }
+.sub { color: var(--muted); margin: 0 0 20px; }
+code { background: var(--gray-soft); padding: 1px 5px; border-radius: 4px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.tab { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 999px; padding: 8px 14px; font: inherit; cursor: pointer; }
+.tab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+.explain { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+.explain p { margin: 0 0 6px; }
+.explain .watch { color: var(--teal); font-weight: 600; margin: 0; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 14px; }
+.run { background: var(--teal); color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font: inherit; font-weight: 600; cursor: pointer; }
+.run:disabled { opacity: .5; cursor: wait; }
+.controls label { color: var(--muted); }
+.controls select { font: inherit; padding: 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+.status { color: var(--muted); }
+.phasebar { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; background: var(--ink); color: #fff; border-radius: 12px 12px 0 0; padding: 10px 16px; }
+.phasebar b { font-size: 17px; }
+.clock { font-variant-numeric: tabular-nums; color: #bfe0da; }
+.stage { display: grid; grid-template-columns: 1.2fr 36px 1.3fr 36px 1fr; background: var(--panel); border: 1px solid var(--line); border-top: 0; border-radius: 0 0 12px 12px; padding: 16px; min-height: 330px; }
+.col h2 { font-size: 15px; margin: 0 0 4px; }
+.col .hint { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.arrow { display: flex; align-items: center; justify-content: center; color: var(--gray); font-size: 26px; }
+.reqs { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { min-width: 44px; padding: 5px 6px; border-radius: 8px; text-align: center; font-size: 12px; font-weight: 600; border: 1px solid var(--line); background: var(--gray-soft); color: var(--muted); transition: background .2s, color .2s, border-color .2s; }
+.chip.waiting { color: var(--ink); border-color: var(--gray); animation: pulse 1s infinite; }
+.chip.connecting { background: var(--amber-soft); color: var(--amber-ink); border-color: var(--amber); }
+.chip.working { background: var(--teal); color: #fff; border-color: var(--teal); }
+.chip.done { background: var(--green-soft); color: var(--green); border-color: var(--green); }
+.chip.refused, .chip.timeout, .chip.failed { background: var(--red-soft); color: var(--red); border-color: var(--red); }
+@keyframes pulse { 50% { opacity: .45; } }
+.slots { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.slot { width: 68px; text-align: center; }
+.dot { width: 52px; height: 52px; margin: 0 auto 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; border: 2px dashed var(--line); color: var(--gray); transition: all .2s; }
+.slot small { display: block; font-size: 11px; color: var(--muted); line-height: 1.25; }
+.slot small.who { color: var(--ink); font-weight: 600; }
+.slot.idle .dot { border: 2px solid var(--teal); background: var(--teal-soft); color: var(--teal); }
+.slot.busy .dot { border: 2px solid var(--teal); background: var(--teal); color: #fff; }
+.slot.connecting .dot { border: 2px solid var(--amber); background: var(--amber-soft); color: var(--amber-ink); animation: pulse .7s infinite; }
+.slot.zombie .dot { border: 2px dashed var(--red); background: var(--teal-soft); color: var(--red); }
+.slot.dead .dot { border: 2px solid var(--red); background: var(--red-soft); color: var(--red); }
+.queue h3 { font-size: 13px; margin: 0 0 6px; color: var(--muted); font-weight: 600; }
+.queue .reqs { min-height: 30px; }
+.nopool { background: var(--amber-soft); color: var(--amber-ink); border-radius: 8px; padding: 8px 10px; font-size: 13px; margin-bottom: 12px; }
+.stat { margin-bottom: 14px; }
+.stat .n { font-size: 34px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat .l { color: var(--muted); font-size: 13px; }
+.meter { height: 10px; background: var(--gray-soft); border-radius: 5px; overflow: hidden; margin-top: 6px; }
+.meter i { display: block; height: 100%; width: 0; background: var(--teal); transition: width .2s, background .2s; }
+.meter.full i { background: var(--red); }
+.stat.bad .n { color: var(--red); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 12px 0 18px; color: var(--muted); font-size: 13px; }
+.legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; background: var(--c); border: 1px solid var(--b, var(--c)); }
+.grid2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; }
+.box { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.box h2 { font-size: 15px; margin: 0 0 10px; }
+.log { height: 280px; overflow-y: auto; font-size: 13px; margin: 0; padding: 0; list-style: none; }
+.log li { padding: 4px 0; border-bottom: 1px solid var(--gray-soft); display: flex; gap: 8px; }
+.log time { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 64px; flex: none; }
+.log li.bad { color: var(--red); font-weight: 600; }
+.log li.good { color: var(--green); }
+.log li.note { color: var(--muted); font-style: italic; }
+.log li.phase { font-weight: 700; background: var(--gray-soft); padding-left: 6px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--gray-soft); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; }
+td.num { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.bar { height: 8px; background: var(--teal); border-radius: 4px; margin-top: 4px; }
+.take { margin-top: 12px; background: var(--teal-soft); border-radius: 8px; padding: 10px 12px; }
+.empty { color: var(--muted); font-size: 13px; }
+@media (max-width: 860px) {
+  .stage { grid-template-columns: 1fr; gap: 18px; }
+  .arrow { transform: rotate(90deg); height: 20px; }
+  .grid2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>Connection Pooling, visualized</h1>
+  <p class="sub">Every animation is a replay of a real run on this machine: the real <code>connection_pool</code> gem, real sockets, and a mock database with a 25 ms handshake and a limit of 10 connections.</p>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="explain">
+    <p id="what"></p>
+    <p class="watch" id="watch"></p>
+  </div>
+
+  <div class="controls">
+    <button class="run" id="run">Run this scenario</button>
+    <label>Speed
+      <select id="speed">
+        <option value="0.5">Slow</option>
+        <option value="1" selected>Normal</option>
+        <option value="2">Fast</option>
+      </select>
+    </label>
+    <span class="status" id="status">Pick a scenario and press Run.</span>
+  </div>
+
+  <div class="phasebar"><b id="phaseTitle">Ready</b><span class="clock" id="clock">real time 0 ms</span></div>
+  <div class="stage">
+    <section class="col">
+      <h2>Requests</h2>
+      <p class="hint">Each box is one web request that needs to ask the database something.</p>
+      <div class="reqs" id="reqs"></div>
+    </section>
+    <div class="arrow">&rarr;</div>
+    <section class="col">
+      <h2 id="midTitle">Pool</h2>
+      <p class="hint" id="midHint"></p>
+      <div id="nopool"></div>
+      <div class="slots" id="slots"></div>
+      <div class="queue" id="queueBox">
+        <h3>Waiting in line (queue): <span id="qcount">0</span></h3>
+        <div class="reqs" id="queue"></div>
+      </div>
+    </section>
+    <div class="arrow">&rarr;</div>
+    <section class="col">
+      <h2>Database</h2>
+      <p class="hint">What the database itself sees.</p>
+      <div class="stat"><div class="n" id="open">0</div><div class="l">open connections right now (limit <span id="max">10</span>)</div><div class="meter" id="meter"><i></i></div></div>
+      <div class="stat"><div class="n" id="opened">0</div><div class="l">connections opened in total (each one costs a handshake)</div></div>
+      <div class="stat" id="refusedBox"><div class="n" id="refused">0</div><div class="l">requests refused (too many connections)</div></div>
+    </section>
+  </div>
+
+  <div class="legend">
+    <span style="--c: var(--gray-soft); --b: var(--gray)">waiting</span>
+    <span style="--c: var(--amber-soft); --b: var(--amber)">opening a connection (handshake)</span>
+    <span style="--c: var(--teal)">running its query</span>
+    <span style="--c: var(--teal-soft); --b: var(--teal)">idle connection, ready to reuse</span>
+    <span style="--c: var(--green-soft); --b: var(--green)">done</span>
+    <span style="--c: var(--red-soft); --b: var(--red)">refused, timed out or failed</span>
+  </div>
+
+  <div class="grid2">
+    <div class="box">
+      <h2>What is happening, step by step</h2>
+      <ul class="log" id="log"></ul>
+    </div>
+    <div class="box">
+      <h2>Results</h2>
+      <div id="results"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+let scenarios = [];
+let current = null;
+let playing = 0; // bumped on every run or tab change so an older replay stops drawing
+
+async function init() {
+  scenarios = await (await fetch("/api/scenarios")).json();
+  for (const s of scenarios) {
+    const b = document.createElement("button");
+    b.className = "tab";
+    b.textContent = s.title;
+    b.dataset.name = s.name;
+    b.onclick = () => select(s.name);
+    $("tabs").appendChild(b);
+  }
+  $("run").onclick = run;
+  select(params.get("scenario") || scenarios[0].name);
+  if (params.get("autorun")) run();
+}
+
+function resetPanels() {
+  $("log").innerHTML = '<li class="empty">The steps appear here while the scenario plays.</li>';
+  $("results").innerHTML = '<p class="empty">Results appear when the run finishes.</p>';
+  $("phaseTitle").textContent = "Ready";
+  $("clock").textContent = "real time 0 ms";
+}
+
+function select(name) {
+  current = scenarios.find((s) => s.name === name);
+  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.name === name));
+  $("what").textContent = current.what;
+  $("watch").textContent = "Watch for: " + current.watch;
+  playing++;
+  $("run").disabled = false;
+  $("status").textContent = "Press Run to execute it for real, then watch the replay.";
+  resetPanels();
+  render(freshState({ mode: "pool", pool_size: 0 }, 10));
+}
+
+async function run() {
+  const token = ++playing;
+  $("run").disabled = true;
+  $("status").textContent = "Running on the real pool and database...";
+  resetPanels();
+  const data = await (await fetch("/api/run?name=" + current.name)).json();
+  if (token !== playing) return;
+  $("log").innerHTML = "";
+  $("max").textContent = data.max_connections;
+  $("status").textContent = "Replaying what happened...";
+
+  // One time scale for the whole scenario, so a faster phase really looks faster.
+  // Capped so a 26 ms phase is not stretched into slow motion.
+  const longest = Math.max(...data.phases.map((p) => compressedLength(p.events)));
+  const scale = Math.min(60, 9000 / Math.max(longest, 1));
+  const instant = params.get("instant");
+
+  for (let i = 0; i < data.phases.length; i++) {
+    const phase = data.phases[i];
+    $("phaseTitle").textContent = `Phase ${i + 1} of ${data.phases.length}: ${phase.title}`;
+    logLine("phase", phase.title, null);
+    const state = freshState(phase, data.max_connections);
+    render(state);
+    await replay(phase, plan(phase.events, scale), state, token, instant);
+    if (token !== playing) return;
+    if (i < data.phases.length - 1 && !instant) await sleep(1500);
+  }
+  showResults(data);
+  $("status").textContent = "Finished. Press Run again for a fresh run; timings vary a little each time.";
+  $("run").disabled = false;
+}
+
+// Idle gaps longer than 2 s (the stale scenario's sleep) are shortened to 0.6 s.
+function compressedTimes(events) {
+  let shift = 0, prev = 0;
+  return events.map((e) => {
+    if (e.t - prev > 2000) shift += e.t - prev - 600;
+    prev = e.t;
+    return e.t - shift;
+  });
+}
+const compressedLength = (events) => compressedTimes(events).at(-1) || 0;
+
+// Display time in ms for each event. Phases with only a few steps get at least
+// 0.45 s per step so every log line can be read as it appears.
+function plan(events, scale) {
+  const sparse = events.length < 40;
+  let prev = -Infinity;
+  return compressedTimes(events).map((t) => {
+    let shown = t * scale;
+    if (sparse) shown = Math.max(shown, prev + 450);
+    prev = shown;
+    return shown;
+  });
+}
+
+function replay(phase, times, state, token, instant) {
+  const speed = parseFloat($("speed").value);
+  return new Promise((resolve) => {
+    let i = 0;
+    const start = performance.now();
+    const tick = (nowMs) => {
+      if (token !== playing) return resolve();
+      const elapsed = instant ? Infinity : (nowMs - start) * speed;
+      while (i < phase.events.length && times[i] <= elapsed) apply(state, phase.events[i++]);
+      $("clock").textContent = `real time ${Math.round(i ? phase.events[i - 1].t : 0)} ms`;
+      render(state);
+      if (i < phase.events.length) return requestAnimationFrame(tick);
+      $("clock").textContent = `real time ${Math.round(phase.elapsed_ms)} ms`;
+      resolve();
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+function freshState(phase, max) {
+  return { mode: phase.mode, size: phase.pool_size || 0, max, reqs: new Map(), conns: [], queue: [], open: 0, opened: 0, refused: 0 };
+}
+
+const LOG_CLASS = { refused: "bad", timeout: "bad", failed: "bad", crash: "bad", stale: "bad", done: "good", reconnected: "good", note: "note", server_closed: "note" };
+
+function apply(s, e) {
+  const conn = (id) => s.conns.find((c) => c.id === id);
+  const dequeue = (r) => { s.queue = s.queue.filter((q) => q !== r); };
+  switch (e.ev) {
+    case "arrive": s.reqs.set(e.req, "new"); break;
+    case "checkout": s.reqs.set(e.req, "waiting"); s.queue.push(e.req); break;
+    case "connect":
+      s.reqs.set(e.req, "connecting"); dequeue(e.req);
+      s.conns.push({ id: null, state: "connecting", req: e.req });
+      break;
+    case "connected": {
+      const c = s.conns.find((x) => x.id === null && x.req === e.req);
+      if (c) { c.id = e.conn; c.state = "busy"; }
+      s.open++; s.opened++;
+      break;
+    }
+    case "acquire": {
+      s.reqs.set(e.req, "working"); dequeue(e.req);
+      const c = conn(e.conn);
+      if (c) { c.state = "busy"; c.req = e.req; }
+      break;
+    }
+    case "done": if (s.reqs.get(e.req) !== "failed") s.reqs.set(e.req, "done"); break;
+    case "release": { const c = conn(e.conn); if (c && c.state !== "dead") { c.state = "idle"; c.req = null; } break; }
+    case "close": s.conns = s.conns.filter((c) => c.id !== e.conn); s.open--; break;
+    case "refused":
+      s.reqs.set(e.req, "refused");
+      s.conns = s.conns.filter((c) => !(c.id === null && c.req === e.req));
+      s.refused++;
+      break;
+    case "timeout": s.reqs.set(e.req, "timeout"); dequeue(e.req); break;
+    case "server_closed": { const c = conn(e.conn); if (c) c.state = "zombie"; s.open--; break; }
+    case "stale": { const c = conn(e.conn); if (c) c.state = "dead"; break; }
+    case "reconnected": {
+      const c = conn(e.old);
+      if (c) { c.id = e.conn; c.state = "busy"; c.req = e.req; }
+      s.open++; s.opened++;
+      break;
+    }
+    case "failed": case "crash": s.reqs.set(e.req, "failed"); break;
+  }
+  logLine(LOG_CLASS[e.ev] || "", e.msg, e.t);
+}
+
+function logLine(cls, text, t) {
+  const li = document.createElement("li");
+  if (cls) li.className = cls;
+  const time = document.createElement("time");
+  time.textContent = t === null ? "" : `${Math.round(t)} ms`;
+  const span = document.createElement("span");
+  span.textContent = text;
+  li.append(time, span);
+  $("log").appendChild(li);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+
+const LABEL = { idle: "idle, ready", busy: "in use", connecting: "handshake...", zombie: "closed by DB, pool unaware", dead: "dead" };
+
+function render(s) {
+  const chip = (r, st) => `<div class="chip ${st}">${r}</div>`;
+  $("reqs").innerHTML = [...s.reqs].map(([r, st]) => chip(r, st)).join("") || '<span class="empty">No requests yet.</span>';
+
+  const pooled = s.mode === "pool";
+  $("midTitle").textContent = pooled ? `Pool (size ${s.size})` : "No pool";
+  $("midHint").textContent = pooled
+    ? "Connections kept open and shared. Dashed circles are slots not opened yet."
+    : "Each request dials its own connection and hangs up when done.";
+  $("nopool").innerHTML = pooled ? "" : '<div class="nopool">Without a pool every request pays the handshake, and nothing stops them all hitting the database at once.</div>';
+  $("queueBox").style.display = pooled ? "" : "none";
+
+  const slot = (c) => {
+    const who = c.req && (c.state === "busy" || c.state === "connecting") ? `<small class="who">${c.req}</small>` : "";
+    return `<div class="slot ${c.state}"><div class="dot">${c.id ? "#" + c.id : "..."}</div><small>${LABEL[c.state]}</small>${who}</div>`;
+  };
+  let html = s.conns.map(slot).join("");
+  if (pooled) for (let i = s.conns.length; i < s.size; i++) html += '<div class="slot"><div class="dot"></div><small>empty slot</small></div>';
+  $("slots").innerHTML = html || '<span class="empty">No connections open.</span>';
+
+  $("queue").innerHTML = s.queue.map((r) => chip(r, "waiting")).join("") || '<span class="empty">Nobody waiting.</span>';
+  $("qcount").textContent = s.queue.length;
+
+  $("open").textContent = s.open;
+  $("opened").textContent = s.opened;
+  $("refused").textContent = s.refused;
+  $("refusedBox").classList.toggle("bad", s.refused > 0);
+  $("meter").querySelector("i").style.width = Math.min(100, (s.open / s.max) * 100) + "%";
+  $("meter").classList.toggle("full", s.open >= s.max);
+}
+
+function showResults(data) {
+  const longest = Math.max(...data.phases.map((p) => p.elapsed_ms));
+  const rows = data.phases.map((p) => {
+    const r = p.results;
+    const bad = (r.refused || 0) + (r.timeout || 0) + (r.failed || 0);
+    return `<tr>
+      <td>${p.title}<div class="bar" style="width:${Math.max(2, (p.elapsed_ms / longest) * 100)}%"></div></td>
+      <td class="num">${Math.round(p.elapsed_ms)} ms</td>
+      <td class="num">${p.db.accepted}</td>
+      <td class="num">${p.db.peak}</td>
+      <td class="num" style="color:${bad ? "var(--red)" : "inherit"}">${bad}</td>
+    </tr>`;
+  }).join("");
+  $("results").innerHTML = `<table>
+      <tr><th>Phase</th><th>Time</th><th>Connections opened</th><th>Peak open</th><th>Problems</th></tr>${rows}
+    </table>
+    <div class="take"><b>Takeaway:</b> ${data.takeaway}</div>`;
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+init();
+</script>
+</body>
+</html>
