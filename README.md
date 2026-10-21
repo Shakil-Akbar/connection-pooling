@@ -1,21 +1,21 @@
 # Connection Pooling Demo
 
-A small Ruby application that compares repeated direct connections with a configured connection pool, and shows pool limits, reuse, timeouts, stale connection handling and state leakage between borrowers.
+A small Ruby application that compares repeated direct connections with a configured connection pool, and shows pool limits, reuse, timeouts and stale connection handling.
 
 ## What is in this folder
 
 | File | Purpose |
 |---|---|
-| `mock_db_server.rb` | A tiny TCP "database" server, started automatically by the demo as a separate process. It simulates an expensive connection handshake, a hard `max_connections` limit, an idle `wait_timeout`, and per connection session state. |
+| `mock_db_server.rb` | A tiny TCP "database" server, started automatically by the demo as a separate process. It simulates an expensive connection handshake, a hard `max_connections` limit and an idle `wait_timeout`. |
 | `db_client.rb` | A minimal driver for that server, shaped like `mysql2` or `pg`: constructing it opens and authenticates a socket. It exposes `ping`, `alive?` and `verify!` (ping and reconnect, like ActiveRecord). |
-| `demo.rb` | Runs the five scenarios and prints the results. |
+| `demo.rb` | Runs the four scenarios and prints the results. |
 | `ui.rb`, `public/index.html` | Visual version: a local web page that runs each scenario for real and replays it as an animation. |
 | `Gemfile`, `Gemfile.lock` | One dependency: [`connection_pool`](https://github.com/mperham/connection_pool), the pool used by Sidekiq, Dalli and the redis gem. |
 | `evidence/demo-output.txt` | Captured output of a full run. |
 | `evidence/environment.txt` | Ruby, OS and gem versions used for the captured run. |
 | `evidence/ui-*.png` | Screenshots of the visual version, one per scenario, at the end of a run. |
 
-Why a mock server instead of MySQL or PostgreSQL: anyone can reproduce the run with only Ruby installed, without credentials, Docker or a database. The mock models the exact properties that make pooling matter (expensive connect, server connection limit, idle timeout, session state). The pool itself is the real, production grade `connection_pool` gem.
+Why a mock server instead of MySQL or PostgreSQL: anyone can reproduce the run with only Ruby installed, without credentials, Docker or a database. The mock models the exact properties that make pooling matter (expensive connect, server connection limit, idle timeout). The pool itself is the real, production grade `connection_pool` gem.
 
 ## Setup
 
@@ -91,12 +91,6 @@ Warm a pool of size 1, then sleep past the server's `wait_timeout` so the server
 
 Expected: the next query without validation fails with `DbClient::ConnectionLost: server has gone away`. With `verify!` on checkout, the client detects the dead socket via ping, reconnects (`reconnects=1`, new connection id) and the query succeeds. `pool.reap(idle_seconds:)` then closes idle connections proactively (`idle=1` becomes `idle=0`).
 
-### 5. Transaction and session state leakage
-
-Pool size 1. Request A begins a transaction, sets `tenant_id 42`, then crashes without rolling back. Request B borrows the same connection.
-
-Expected: with a naive pool, request B sees `TX open` and `tenant_id=42`, which is someone else's state. With a reset on release (`RESET` in an `ensure` around every checkout), request B sees `TX none` and `tenant_id=NULL`.
-
 ## Mapping to real stacks
 
 | Demo concept | Rails / ActiveRecord | Other stacks |
@@ -105,4 +99,3 @@ Expected: with a naive pool, request B sees `TX open` and `tenant_id=42`, which 
 | `timeout:` | `checkout_timeout` (raises `ActiveRecord::ConnectionTimeoutError`) | HikariCP `connectionTimeout` |
 | `verify!` | `ActiveRecord::ConnectionAdapters::AbstractAdapter#verify!` | HikariCP `keepaliveTime`, pgbouncer `server_check_query` |
 | `reap(idle_seconds:)` | `idle_timeout` and the pool reaper (`reaping_frequency`) | HikariCP `idleTimeout`, `maxLifetime` |
-| Reset on release | `reset!` and transaction rollback on checkin | pgbouncer `server_reset_query = DISCARD ALL` |

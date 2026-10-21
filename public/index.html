@@ -283,7 +283,7 @@ function freshState(phase, max) {
   return { mode: phase.mode, size: phase.pool_size || 0, max, reqs: new Map(), conns: [], queue: [], open: 0, opened: 0, refused: 0 };
 }
 
-const LOG_CLASS = { refused: "bad", timeout: "bad", failed: "bad", crash: "bad", stale: "bad", done: "good", reconnected: "good", note: "note", server_closed: "note" };
+const LOG_CLASS = { refused: "bad", timeout: "bad", failed: "bad", stale: "bad", done: "good", reconnected: "good", note: "note", server_closed: "note" };
 
 function apply(s, e) {
   const conn = (id) => s.conns.find((c) => c.id === id);
@@ -324,7 +324,7 @@ function apply(s, e) {
       s.open++; s.opened++;
       break;
     }
-    case "failed": case "crash": s.reqs.set(e.req, "failed"); break;
+    case "failed": s.reqs.set(e.req, "failed"); break;
   }
   logLine(LOG_CLASS[e.ev] || "", e.msg, e.t);
 }

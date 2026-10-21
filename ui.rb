@@ -223,53 +223,8 @@ SCENARIOS = {
       end
       [stale.call("Without validation", false), stale.call("With verify! on checkout", true)]
     end,
-    takeaway: "Check a connection before handing it out (Rails does this with verify!). Your er-web " \
-              "app does exactly this in MiddlewareForceLogout."
-  },
-  "leak" => {
-    title: "State leak: reset on release",
-    what: "A pool of 1, so two requests share the same connection. R1 starts a transaction, " \
-          "sets tenant_id = 42, then crashes before COMMIT or ROLLBACK. R2 comes next.",
-    watch: "Without a reset, R2 inherits R1's open transaction and tenant. With a reset, R2 starts clean.",
-    run: lambda do
-      leak = lambda do |title, reset|
-        phase(title, mode: "pool", pool_size: 1, timeout: 1) do |rec|
-          pool = new_pool(rec, size: 1, timeout: 1)
-          Thread.current[:req] = "R1"
-          rec.ev("arrive", "R1 arrives and asks the pool for a connection", req: "R1")
-          rec.ev("checkout", "R1: waiting for a connection", req: "R1")
-          pool.with do |conn|
-            rec.ev("acquire", "R1: uses connection ##{conn.id}", req: "R1", conn: conn.id)
-            conn.call("BEGIN")
-            conn.call("SET tenant_id 42")
-            rec.ev("note", "R1: BEGIN transaction, SET tenant_id = 42")
-            rec.ev("crash", "R1: crashes before COMMIT or ROLLBACK", req: "R1")
-            if reset
-              conn.call("RESET")
-              rec.ev("note", "Pool resets connection ##{conn.id} on release: ROLLBACK and clear session")
-            end
-            rec.ev("release", "R1: connection ##{conn.id} goes back to the pool", req: "R1", conn: conn.id)
-          end
-          Thread.current[:req] = "R2"
-          rec.ev("arrive", "R2 arrives and asks the pool for a connection", req: "R2")
-          rec.ev("checkout", "R2: waiting for a connection", req: "R2")
-          pool.with do |conn|
-            rec.ev("acquire", "R2: reuses connection ##{conn.id}", req: "R2", conn: conn.id, reused: true)
-            tx = conn.call("STATUS").delete_prefix("TX ")
-            tenant = conn.call("GET tenant_id").delete_prefix("VALUE ")
-            leaked = tx == "open" || tenant != "NULL"
-            rec.ev(leaked ? "failed" : "done",
-                   "R2 sees: transaction #{tx}, tenant_id = #{tenant}#{leaked ? '  <- R1\'s leftovers!' : '  (clean)'}",
-                   req: "R2", conn: conn.id)
-            rec.ev("release", "R2: gives connection ##{conn.id} back to the pool", req: "R2", conn: conn.id)
-          end
-          drain(pool)
-        end
-      end
-      [leak.call("Naive pool", false), leak.call("Pool with reset on release", true)]
-    end,
-    takeaway: "A pool must hand out clean connections. Rails rolls back open transactions when a " \
-              "connection is returned."
+    takeaway: "Check a connection before handing it out, and reconnect if it is dead. " \
+              "Rails does this with verify!."
   }
 }.freeze
 

@@ -4,7 +4,7 @@
 #
 # Why a mock instead of MySQL or PostgreSQL: the demo must be reproducible by any
 # reviewer with nothing but Ruby installed, no credentials and no database setup.
-# The server models the four properties of a real database that make pooling matter:
+# The server models the three properties of a real database that make pooling matter:
 #
 #   1. Opening a connection is expensive (TCP + TLS + authentication), simulated
 #      with a configurable handshake delay.
@@ -12,18 +12,11 @@
 #      like MySQL's "Too many connections" error.
 #   3. Idle connections are closed after wait_timeout seconds, like MySQL's
 #      wait_timeout, which is what produces stale connections in a pool.
-#   4. Every connection has session state (variables, open transaction) that
-#      survives for the lifetime of that connection.
 #
 # Protocol (one line per request, one line per reply):
 #   HELLO <user> <password>  -> OK <connection_id> | ERR too_many_connections
 #   QUERY <ms>               -> ROW <connection_id>   (sleeps ms to simulate work)
 #   PING                     -> PONG
-#   SET <key> <value>        -> OK
-#   GET <key>                -> VALUE <value> | VALUE NULL
-#   BEGIN | COMMIT | ROLLBACK -> OK
-#   STATUS                   -> TX open | TX none
-#   RESET                    -> OK   (rolls back and clears session state)
 #   QUIT                     -> BYE
 # Admin lines sent as the first line instead of HELLO (never counted as clients):
 #   STATS                    -> accepted=N active=N peak=N refused=N
@@ -111,9 +104,6 @@ class MockDbServer
   end
 
   def session(socket, id)
-    vars = {}
-    in_tx = false
-
     loop do
       # Server side idle timeout. A pooled connection that sits unused longer than
       # this is silently closed, and the client only finds out on its next write.
@@ -127,12 +117,6 @@ class MockDbServer
         case cmd
         when "QUERY" then sleep(args[0].to_i / 1000.0); "ROW #{id}"
         when "PING" then "PONG"
-        when "SET" then vars[args[0]] = args[1]; "OK"
-        when "GET" then "VALUE #{vars.fetch(args[0], 'NULL')}"
-        when "BEGIN" then in_tx = true; "OK"
-        when "COMMIT", "ROLLBACK" then in_tx = false; "OK"
-        when "STATUS" then in_tx ? "TX open" : "TX none"
-        when "RESET" then in_tx = false; vars.clear; "OK"
         when "QUIT" then socket.write("BYE\n"); return
         else "ERR unknown_command"
         end

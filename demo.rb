@@ -6,7 +6,7 @@
 #   bundle exec ruby demo.rb
 #
 # Starts mock_db_server.rb as a separate process on a random local port, then runs
-# five scenarios against it. See README.md for what each scenario proves.
+# four scenarios against it. See README.md for what each scenario proves.
 
 require "bundler/setup"
 require "connection_pool"
@@ -178,50 +178,6 @@ pool.reap(idle_seconds: 0.1, &:close)
 puts "idle reaping: idle=#{pool.idle} after reap(idle_seconds: 0.1), the next checkout opens a fresh connection"
 puts "=> validate on checkout (or reap idle connections before the server's timeout) " \
      "so requests never receive a dead socket"
-drain(pool)
-
-# --------------------------------------------------------------------------
-header "5. Transaction and session state leaking between borrowers (pool size 1)"
-# --------------------------------------------------------------------------
-def request_a(pool)
-  pool.with do |conn|
-    conn.call("BEGIN")
-    conn.call("SET tenant_id 42")
-    raise "boom: request A crashed mid transaction"
-  end
-rescue RuntimeError => e
-  puts "request A: #{e.message}"
-end
-
-def request_b(pool)
-  pool.with do |conn|
-    puts "request B: connection #{conn.id}  #{conn.call('STATUS')}  tenant_id=#{conn.call('GET tenant_id').delete_prefix('VALUE ')}"
-  end
-end
-
-pool = new_pool(size: 1, timeout: 1)
-puts "naive pool:"
-request_a(pool)
-request_b(pool)
-drain(pool)
-
-# Fix: always reset the connection on release, whatever happened in the block.
-module CleanCheckin
-  def with(**)
-    super do |conn|
-      yield conn
-    ensure
-      conn.call("RESET") # rollback open transaction + clear session variables
-    end
-  end
-end
-
-pool = new_pool(size: 1, timeout: 1).extend(CleanCheckin)
-puts "pool with reset on release:"
-request_a(pool)
-request_b(pool)
-puts "=> a pool must hand out connections in a known clean state: roll back open " \
-     "transactions and reset session state on release"
 drain(pool)
 
 puts
