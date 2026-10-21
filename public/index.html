@@ -6,150 +6,245 @@
 <title>Connection Pooling Visualized</title>
 <style>
 :root {
-  --bg: #f4f7f6; --panel: #ffffff; --ink: #12343b; --muted: #5b7076; --line: #d7e4e1;
-  --teal: #1f7a6d; --teal-soft: #d6ece8; --amber: #e89b2d; --amber-soft: #fbead0; --amber-ink: #8a5300;
-  --red: #d9502b; --red-soft: #f9dcd3; --green: #2e9b5f; --green-soft: #d7f0e1;
-  --gray: #9aa9ad; --gray-soft: #eceff0;
+  --bg: #eef3f2; --panel: #ffffff; --ink: #10292f; --muted: #5d7277; --line: #dbe6e3;
+  --deep: #0c2328; --teal: #1f8a7a; --teal-2: #27b39d; --teal-soft: #d8efea;
+  --amber: #f0a33a; --amber-soft: #fdecd2; --amber-ink: #8a5300;
+  --red: #e0563a; --red-soft: #fbdcd4; --green: #2fa36b; --green-soft: #d9f2e4;
+  --gray: #a3b2b6; --gray-soft: #edf1f2;
+  --shadow: 0 1px 2px rgba(16,41,47,.06), 0 8px 24px rgba(16,41,47,.07);
+  --radius: 16px;
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-main { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
-h1 { font-size: 26px; margin: 0 0 4px; }
-.sub { color: var(--muted); margin: 0 0 20px; }
-code { background: var(--gray-soft); padding: 1px 5px; border-radius: 4px; }
-.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
-.tab { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 999px; padding: 8px 14px; font: inherit; cursor: pointer; }
-.tab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
-.explain { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
-.explain p { margin: 0 0 6px; }
-.explain .watch { color: var(--teal); font-weight: 600; margin: 0; }
-.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 14px; }
-.run { background: var(--teal); color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font: inherit; font-weight: 600; cursor: pointer; }
-.run:disabled { opacity: .5; cursor: wait; }
-.controls label { color: var(--muted); }
-.controls select { font: inherit; padding: 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
-.status { color: var(--muted); }
-.phasebar { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; background: var(--ink); color: #fff; border-radius: 12px 12px 0 0; padding: 10px 16px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; }
+
+/* ---------- hero ---------- */
+.hero { background: radial-gradient(1200px 400px at 85% -10%, rgba(39,179,157,.35), transparent 60%), linear-gradient(135deg, #0c2328 0%, #12363d 55%, #175247 100%); color: #fff; padding: 34px 16px 92px; }
+.hero-inner { max-width: 1180px; margin: 0 auto; display: flex; gap: 24px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.brand { display: flex; gap: 16px; align-items: center; }
+.logo { width: 54px; height: 54px; border-radius: 16px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); display: grid; place-items: center; }
+.logo svg { width: 30px; height: 30px; }
+.hero h1 { margin: 0; font-size: 30px; letter-spacing: -.02em; }
+.hero h1 span { color: #7fe0cf; }
+.hero p { margin: 4px 0 0; color: #b9d6d1; }
+.pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.pill { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.16); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: #e3f3f0; white-space: nowrap; }
+.pill b { color: #fff; }
+
+main { max-width: 1180px; margin: -64px auto 0; padding: 0 16px 48px; position: relative; }
+
+/* ---------- scenario cards ---------- */
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.tab { text-align: left; border: 2px solid transparent; background: var(--panel); color: var(--ink); border-radius: var(--radius); padding: 14px 16px; font: inherit; cursor: pointer; box-shadow: var(--shadow); transition: transform .15s, border-color .15s, box-shadow .15s; display: flex; gap: 12px; align-items: center; }
+.tab:hover { transform: translateY(-2px); }
+.tab .num { flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-weight: 800; background: var(--gray-soft); color: var(--muted); transition: all .15s; }
+.tab b { display: block; font-size: 16px; }
+.tab small { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.3; }
+.tab.active { border-color: var(--teal); box-shadow: 0 10px 28px rgba(31,138,122,.22); }
+.tab.active .num { background: linear-gradient(135deg, var(--teal), var(--teal-2)); color: #fff; }
+
+/* ---------- explain + controls ---------- */
+.intro { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 20px; margin-bottom: 16px; display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; }
+.intro p { margin: 0 0 8px; font-size: 15.5px; }
+.watch { display: inline-flex; gap: 8px; align-items: flex-start; background: var(--teal-soft); color: #0f5e53; border-radius: 10px; padding: 8px 12px; font-weight: 600; font-size: 14px; margin: 0 !important; }
+.watch::before { content: "👀"; }
+.controls { display: flex; flex-direction: column; gap: 10px; align-items: stretch; min-width: 230px; }
+.run { display: flex; align-items: center; justify-content: center; gap: 10px; background: linear-gradient(135deg, var(--teal), var(--teal-2)); color: #fff; border: 0; border-radius: 12px; padding: 13px 22px; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 8px 20px rgba(31,138,122,.35); transition: transform .12s, box-shadow .12s, opacity .12s; }
+.run:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(31,138,122,.45); }
+.run:disabled { opacity: .55; cursor: wait; transform: none; }
+.run svg { width: 16px; height: 16px; }
+.speed { display: flex; background: var(--gray-soft); border-radius: 10px; padding: 3px; }
+.speed button { flex: 1; border: 0; background: transparent; padding: 6px 8px; border-radius: 8px; font: inherit; font-size: 13px; color: var(--muted); cursor: pointer; }
+.speed button.on { background: var(--panel); color: var(--ink); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.status { color: var(--muted); font-size: 13px; text-align: center; }
+
+/* ---------- phase bar + stage ---------- */
+.board { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 14px; }
+.phasebar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: linear-gradient(90deg, var(--deep), #164a43); color: #fff; padding: 12px 18px; }
+.phasebar .left { display: flex; gap: 10px; align-items: center; }
+.step { background: rgba(255,255,255,.14); border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
 .phasebar b { font-size: 17px; }
-.clock { font-variant-numeric: tabular-nums; color: #bfe0da; }
-.stage { display: grid; grid-template-columns: 1.2fr 36px 1.3fr 36px 1fr; background: var(--panel); border: 1px solid var(--line); border-top: 0; border-radius: 0 0 12px 12px; padding: 16px; min-height: 330px; }
-.col h2 { font-size: 15px; margin: 0 0 4px; }
-.col .hint { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
-.arrow { display: flex; align-items: center; justify-content: center; color: var(--gray); font-size: 26px; }
-.reqs { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { min-width: 44px; padding: 5px 6px; border-radius: 8px; text-align: center; font-size: 12px; font-weight: 600; border: 1px solid var(--line); background: var(--gray-soft); color: var(--muted); transition: background .2s, color .2s, border-color .2s; }
-.chip.waiting { color: var(--ink); border-color: var(--gray); animation: pulse 1s infinite; }
+.clock { display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; color: #bfe6de; font-size: 14px; }
+.live { width: 9px; height: 9px; border-radius: 50%; background: #6b8a86; }
+body.playing .live { background: #ff6b5a; box-shadow: 0 0 0 0 rgba(255,107,90,.6); animation: live 1.2s infinite; }
+@keyframes live { 70% { box-shadow: 0 0 0 9px rgba(255,107,90,0); } 100% { box-shadow: 0 0 0 0 rgba(255,107,90,0); } }
+
+.stage { display: grid; grid-template-columns: 1.15fr 54px 1.35fr 54px 1fr; padding: 20px; min-height: 340px; }
+.col h2 { display: flex; align-items: center; gap: 10px; font-size: 16px; margin: 0 0 4px; }
+.ico { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--teal-soft); color: var(--teal); flex: none; }
+.ico svg { width: 18px; height: 18px; }
+.col .hint { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+.flow { position: relative; display: flex; align-items: center; justify-content: center; }
+.flow::before { content: ""; width: 100%; height: 4px; border-radius: 2px; background-image: linear-gradient(90deg, var(--line) 50%, transparent 50%); background-size: 14px 4px; }
+body.playing .flow::before { background-image: linear-gradient(90deg, var(--teal-2) 50%, transparent 50%); animation: flow .6s linear infinite; }
+.flow::after { content: ""; position: absolute; right: 2px; border: 7px solid transparent; border-left-color: var(--line); }
+body.playing .flow::after { border-left-color: var(--teal-2); }
+@keyframes flow { to { background-position: 14px 0; } }
+
+.reqs { display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; }
+.chip { min-width: 46px; padding: 6px 7px; border-radius: 9px; text-align: center; font-size: 12px; font-weight: 700; border: 1.5px solid var(--line); background: var(--gray-soft); color: var(--muted); transition: background .25s, color .25s, border-color .25s, box-shadow .25s; animation: pop .3s ease-out; }
+@keyframes pop { from { transform: scale(.4); opacity: 0; } }
+.chip.waiting { color: var(--ink); border-color: var(--gray); animation: pop .3s ease-out, breathe 1.1s ease-in-out .3s infinite; }
+@keyframes breathe { 50% { opacity: .45; } }
 .chip.connecting { background: var(--amber-soft); color: var(--amber-ink); border-color: var(--amber); }
-.chip.working { background: var(--teal); color: #fff; border-color: var(--teal); }
+.chip.working { background: var(--teal); color: #fff; border-color: var(--teal); box-shadow: 0 0 0 4px rgba(31,138,122,.15); }
 .chip.done { background: var(--green-soft); color: var(--green); border-color: var(--green); }
-.chip.refused, .chip.timeout, .chip.failed { background: var(--red-soft); color: var(--red); border-color: var(--red); }
-@keyframes pulse { 50% { opacity: .45; } }
-.slots { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
-.slot { width: 68px; text-align: center; }
-.dot { width: 52px; height: 52px; margin: 0 auto 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; border: 2px dashed var(--line); color: var(--gray); transition: all .2s; }
+.chip.refused, .chip.timeout, .chip.failed { background: var(--red-soft); color: var(--red); border-color: var(--red); animation: shake .4s; }
+@keyframes shake { 20%, 60% { transform: translateX(-3px); } 40%, 80% { transform: translateX(3px); } }
+
+.slots { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; min-height: 92px; }
+.slot { width: 70px; text-align: center; animation: pop .3s ease-out; }
+.dot { position: relative; width: 56px; height: 56px; margin: 0 auto 5px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; border: 2px dashed var(--line); color: var(--gray); transition: all .25s; }
 .slot small { display: block; font-size: 11px; color: var(--muted); line-height: 1.25; }
-.slot small.who { color: var(--ink); font-weight: 600; }
+.slot small.who { color: var(--ink); font-weight: 700; }
 .slot.idle .dot { border: 2px solid var(--teal); background: var(--teal-soft); color: var(--teal); }
-.slot.busy .dot { border: 2px solid var(--teal); background: var(--teal); color: #fff; }
-.slot.connecting .dot { border: 2px solid var(--amber); background: var(--amber-soft); color: var(--amber-ink); animation: pulse .7s infinite; }
+.slot.busy .dot { border: 2px solid var(--teal); background: linear-gradient(135deg, var(--teal), var(--teal-2)); color: #fff; animation: glow 1.4s ease-in-out infinite; }
+@keyframes glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(39,179,157,.45); } 50% { box-shadow: 0 0 0 8px rgba(39,179,157,0); } }
+.slot.connecting .dot { border: 2px solid var(--amber-soft); background: var(--amber-soft); color: var(--amber-ink); }
+.slot.connecting .dot::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 3px solid transparent; border-top-color: var(--amber); animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .slot.zombie .dot { border: 2px dashed var(--red); background: var(--teal-soft); color: var(--red); }
-.slot.dead .dot { border: 2px solid var(--red); background: var(--red-soft); color: var(--red); }
-.queue h3 { font-size: 13px; margin: 0 0 6px; color: var(--muted); font-weight: 600; }
+.slot.dead .dot { border: 2px solid var(--red); background: var(--red-soft); color: var(--red); animation: shake .4s; }
+
+.queue { background: var(--gray-soft); border-radius: 12px; padding: 10px 12px; }
+.queue h3 { font-size: 12px; margin: 0 0 8px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; display: flex; justify-content: space-between; }
+.queue h3 span { background: var(--panel); color: var(--ink); border-radius: 999px; padding: 0 8px; }
 .queue .reqs { min-height: 30px; }
-.nopool { background: var(--amber-soft); color: var(--amber-ink); border-radius: 8px; padding: 8px 10px; font-size: 13px; margin-bottom: 12px; }
-.stat { margin-bottom: 14px; }
-.stat .n { font-size: 34px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.nopool { background: var(--amber-soft); color: var(--amber-ink); border-radius: 12px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; font-weight: 500; }
+
+.stat { margin-bottom: 16px; }
+.stat .n { font-size: 40px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; transition: color .2s; }
 .stat .l { color: var(--muted); font-size: 13px; }
-.meter { height: 10px; background: var(--gray-soft); border-radius: 5px; overflow: hidden; margin-top: 6px; }
-.meter i { display: block; height: 100%; width: 0; background: var(--teal); transition: width .2s, background .2s; }
-.meter.full i { background: var(--red); }
+.meter { height: 10px; background: var(--gray-soft); border-radius: 5px; overflow: hidden; margin-top: 8px; }
+.meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--teal), var(--teal-2)); border-radius: 5px; transition: width .25s, background .25s; }
+.meter.full i { background: linear-gradient(90deg, #f08a5d, var(--red)); }
 .stat.bad .n { color: var(--red); }
-.legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 12px 0 18px; color: var(--muted); font-size: 13px; }
-.legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; background: var(--c); border: 1px solid var(--b, var(--c)); }
-.grid2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; }
-.box { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
-.box h2 { font-size: 15px; margin: 0 0 10px; }
-.log { height: 280px; overflow-y: auto; font-size: 13px; margin: 0; padding: 0; list-style: none; }
-.log li { padding: 4px 0; border-bottom: 1px solid var(--gray-soft); display: flex; gap: 8px; }
-.log time { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 64px; flex: none; }
-.log li.bad { color: var(--red); font-weight: 600; }
-.log li.good { color: var(--green); }
-.log li.note { color: var(--muted); font-style: italic; }
-.log li.phase { font-weight: 700; background: var(--gray-soft); padding-left: 6px; }
-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--gray-soft); vertical-align: top; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 12px 20px; border-top: 1px solid var(--gray-soft); color: var(--muted); font-size: 12.5px; }
+.legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; background: var(--c); border: 1.5px solid var(--b, var(--c)); }
+
+/* ---------- log + results ---------- */
+.grid2 { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; }
+.box { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 18px; min-width: 0; }
+.box h2 { font-size: 16px; margin: 0 0 12px; }
+.log { height: 300px; overflow-y: auto; font-size: 13px; margin: 0; padding: 0 0 0 4px; list-style: none; }
+.log li { position: relative; padding: 5px 0 5px 18px; display: flex; gap: 10px; animation: slide .25s ease-out; }
+.log li::before { content: ""; position: absolute; left: 0; top: 11px; width: 8px; height: 8px; border-radius: 50%; background: var(--gray); }
+.log li::after { content: ""; position: absolute; left: 3.5px; top: 21px; bottom: -9px; width: 1px; background: var(--line); }
+.log li:last-child::after { display: none; }
+@keyframes slide { from { opacity: 0; transform: translateY(6px); } }
+.log time { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 62px; flex: none; }
+.log li.bad { color: var(--red); font-weight: 600; } .log li.bad::before { background: var(--red); }
+.log li.good { color: var(--green); } .log li.good::before { background: var(--green); }
+.log li.note { color: var(--muted); font-style: italic; } .log li.note::before { background: var(--amber); }
+.log li.phase { font-weight: 800; margin-top: 4px; } .log li.phase::before { background: var(--teal); width: 10px; height: 10px; left: -1px; top: 10px; }
+.log li.empty::before, .log li.empty::after { display: none; }
+
+.highlights { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.hl { border-radius: 12px; padding: 12px; background: var(--gray-soft); }
+.hl .v { font-size: 22px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.hl .k { font-size: 12px; color: var(--muted); }
+.hl.win { background: linear-gradient(135deg, var(--teal), var(--teal-2)); color: #fff; }
+.hl.win .k { color: #d6f5ef; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 7px 4px; border-bottom: 1px solid var(--gray-soft); vertical-align: top; }
 th { color: var(--muted); font-weight: 600; font-size: 12px; }
-td.num { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
-.bar { height: 8px; background: var(--teal); border-radius: 4px; margin-top: 4px; }
-.take { margin-top: 12px; background: var(--teal-soft); border-radius: 8px; padding: 10px 12px; }
-.empty { color: var(--muted); font-size: 13px; }
-@media (max-width: 860px) {
+td.num { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.bar { height: 6px; background: linear-gradient(90deg, var(--teal), var(--teal-2)); border-radius: 3px; margin-top: 5px; }
+.take { margin-top: 14px; background: var(--deep); color: #e3f3f0; border-radius: 12px; padding: 12px 14px; font-size: 14px; }
+.take b { color: #7fe0cf; }
+.empty { color: var(--muted); font-size: 13px; font-weight: 400; }
+
+/* instant mode (used for evidence screenshots): final state, no motion */
+body.instant *, body.instant *::before, body.instant *::after { animation: none !important; transition: none !important; }
+
+@media (max-width: 960px) {
+  .tabs { grid-template-columns: repeat(2, 1fr); }
+  .intro { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
   .stage { grid-template-columns: 1fr; gap: 18px; }
-  .arrow { transform: rotate(90deg); height: 20px; }
+  .flow { height: 24px; transform: rotate(90deg); width: 40px; margin: 0 auto; }
   .grid2 { grid-template-columns: 1fr; }
+  .tabs { grid-template-columns: 1fr; }
 }
 </style>
 </head>
 <body>
-<main>
-  <h1>Connection Pooling, visualized</h1>
-  <p class="sub">Every animation is a replay of a real run on this machine: the real <code>connection_pool</code> gem, real sockets, and a mock database with a 25 ms handshake and a limit of 10 connections.</p>
+<header class="hero">
+  <div class="hero-inner">
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#7fe0cf" stroke-width="2" stroke-linecap="round"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.3 11l7.4-4M8.3 13l7.4 4"/></svg></div>
+      <div>
+        <h1>Connection Pooling, <span>visualized</span></h1>
+        <p>Every animation replays a real run: real pool, real sockets, real timings.</p>
+      </div>
+    </div>
+    <div class="pills">
+      <span class="pill"><b>25 ms</b> to open a connection</span>
+      <span class="pill">database limit <b id="maxPill">10</b></span>
+      <span class="pill"><code>connection_pool</code> gem</span>
+    </div>
+  </div>
+</header>
 
+<main>
   <div class="tabs" id="tabs"></div>
 
-  <div class="explain">
-    <p id="what"></p>
-    <p class="watch" id="watch"></p>
-  </div>
-
-  <div class="controls">
-    <button class="run" id="run">Run this scenario</button>
-    <label>Speed
-      <select id="speed">
-        <option value="0.5">Slow</option>
-        <option value="1" selected>Normal</option>
-        <option value="2">Fast</option>
-      </select>
-    </label>
-    <span class="status" id="status">Pick a scenario and press Run.</span>
-  </div>
-
-  <div class="phasebar"><b id="phaseTitle">Ready</b><span class="clock" id="clock">real time 0 ms</span></div>
-  <div class="stage">
-    <section class="col">
-      <h2>Requests</h2>
-      <p class="hint">Each box is one web request that needs to ask the database something.</p>
-      <div class="reqs" id="reqs"></div>
-    </section>
-    <div class="arrow">&rarr;</div>
-    <section class="col">
-      <h2 id="midTitle">Pool</h2>
-      <p class="hint" id="midHint"></p>
-      <div id="nopool"></div>
-      <div class="slots" id="slots"></div>
-      <div class="queue" id="queueBox">
-        <h3>Waiting in line (queue): <span id="qcount">0</span></h3>
-        <div class="reqs" id="queue"></div>
+  <section class="intro">
+    <div>
+      <p id="what"></p>
+      <p class="watch" id="watch"></p>
+    </div>
+    <div class="controls">
+      <button class="run" id="run"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12.5-7.5z"/></svg><span id="runLabel">Run this scenario</span></button>
+      <div class="speed" id="speed">
+        <button data-v="0.5">Slow</button><button data-v="1" class="on">Normal</button><button data-v="2">Fast</button>
       </div>
-    </section>
-    <div class="arrow">&rarr;</div>
-    <section class="col">
-      <h2>Database</h2>
-      <p class="hint">What the database itself sees.</p>
-      <div class="stat"><div class="n" id="open">0</div><div class="l">open connections right now (limit <span id="max">10</span>)</div><div class="meter" id="meter"><i></i></div></div>
-      <div class="stat"><div class="n" id="opened">0</div><div class="l">connections opened in total (each one costs a handshake)</div></div>
-      <div class="stat" id="refusedBox"><div class="n" id="refused">0</div><div class="l">requests refused (too many connections)</div></div>
-    </section>
-  </div>
+      <div class="status" id="status">Pick a scenario and press Run.</div>
+    </div>
+  </section>
 
-  <div class="legend">
-    <span style="--c: var(--gray-soft); --b: var(--gray)">waiting</span>
-    <span style="--c: var(--amber-soft); --b: var(--amber)">opening a connection (handshake)</span>
-    <span style="--c: var(--teal)">running its query</span>
-    <span style="--c: var(--teal-soft); --b: var(--teal)">idle connection, ready to reuse</span>
-    <span style="--c: var(--green-soft); --b: var(--green)">done</span>
-    <span style="--c: var(--red-soft); --b: var(--red)">refused, timed out or failed</span>
-  </div>
+  <section class="board">
+    <div class="phasebar">
+      <div class="left"><span class="step" id="phaseStep">Ready</span><b id="phaseTitle">Press Run to start</b></div>
+      <span class="clock"><i class="live"></i><span id="clock">real time 0 ms</span></span>
+    </div>
+    <div class="stage">
+      <div class="col">
+        <h2><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.6a3.5 3.5 0 010 6.8M18.5 14.4c1.8.8 3 2.9 3 5.6"/></svg></span>Requests</h2>
+        <p class="hint">Each box is one web request that needs data from the database.</p>
+        <div class="reqs" id="reqs"></div>
+      </div>
+      <div class="flow"></div>
+      <div class="col">
+        <h2><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></span><span id="midTitle">Pool</span></h2>
+        <p class="hint" id="midHint"></p>
+        <div id="nopool"></div>
+        <div class="slots" id="slots"></div>
+        <div class="queue" id="queueBox">
+          <h3>Waiting in line <span id="qcount">0</span></h3>
+          <div class="reqs" id="queue"></div>
+        </div>
+      </div>
+      <div class="flow"></div>
+      <div class="col">
+        <h2><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5.5" rx="7.5" ry="3"/><path d="M4.5 5.5v13c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-13"/><path d="M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3"/></svg></span>Database</h2>
+        <p class="hint">What the database itself sees.</p>
+        <div class="stat"><div class="n" id="open">0</div><div class="l">open right now (limit <span id="max">10</span>)</div><div class="meter" id="meter"><i></i></div></div>
+        <div class="stat"><div class="n" id="opened">0</div><div class="l">opened in total, each one a handshake</div></div>
+        <div class="stat" id="refusedBox"><div class="n" id="refused">0</div><div class="l">refused: too many connections</div></div>
+      </div>
+    </div>
+    <div class="legend">
+      <span style="--c: var(--gray-soft); --b: var(--gray)">waiting</span>
+      <span style="--c: var(--amber-soft); --b: var(--amber)">opening a connection</span>
+      <span style="--c: var(--teal)">running its query</span>
+      <span style="--c: var(--teal-soft); --b: var(--teal)">idle, ready to reuse</span>
+      <span style="--c: var(--green-soft); --b: var(--green)">done</span>
+      <span style="--c: var(--red-soft); --b: var(--red)">refused, timed out or failed</span>
+    </div>
+  </section>
 
   <div class="grid2">
     <div class="box">
@@ -169,26 +264,40 @@ const params = new URLSearchParams(location.search);
 let scenarios = [];
 let current = null;
 let playing = 0; // bumped on every run or tab change so an older replay stops drawing
+let speed = 1;
 
 async function init() {
   scenarios = await (await fetch("/api/scenarios")).json();
-  for (const s of scenarios) {
+  scenarios.forEach((s, i) => {
+    const [name, sub] = s.title.split(":").map((x) => x.trim());
     const b = document.createElement("button");
     b.className = "tab";
-    b.textContent = s.title;
     b.dataset.name = s.name;
+    b.innerHTML = `<span class="num">${i + 1}</span><span><b></b><small></small></span>`;
+    b.querySelector("b").textContent = name;
+    b.querySelector("small").textContent = sub || "";
     b.onclick = () => select(s.name);
     $("tabs").appendChild(b);
-  }
+  });
   $("run").onclick = run;
+  if (params.get("instant")) document.body.classList.add("instant");
+  $("speed").querySelectorAll("button").forEach((b) => {
+    b.onclick = () => {
+      speed = parseFloat(b.dataset.v);
+      $("speed").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+    };
+  });
   select(params.get("scenario") || scenarios[0].name);
   if (params.get("autorun")) run();
 }
 
+function setPlaying(on) { document.body.classList.toggle("playing", on); }
+
 function resetPanels() {
   $("log").innerHTML = '<li class="empty">The steps appear here while the scenario plays.</li>';
   $("results").innerHTML = '<p class="empty">Results appear when the run finishes.</p>';
-  $("phaseTitle").textContent = "Ready";
+  $("phaseStep").textContent = "Ready";
+  $("phaseTitle").textContent = "Press Run to start";
   $("clock").textContent = "real time 0 ms";
 }
 
@@ -196,43 +305,52 @@ function select(name) {
   current = scenarios.find((s) => s.name === name);
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.name === name));
   $("what").textContent = current.what;
-  $("watch").textContent = "Watch for: " + current.watch;
+  $("watch").textContent = current.watch;
   playing++;
+  setPlaying(false);
   $("run").disabled = false;
-  $("status").textContent = "Press Run to execute it for real, then watch the replay.";
+  $("runLabel").textContent = "Run this scenario";
+  $("status").textContent = "Runs for real, then replays slowly.";
   resetPanels();
+  ["reqs", "slots", "queue"].forEach((id) => { $(id).innerHTML = ""; });
   render(freshState({ mode: "pool", pool_size: 0 }, 10));
 }
 
 async function run() {
   const token = ++playing;
   $("run").disabled = true;
-  $("status").textContent = "Running on the real pool and database...";
+  $("runLabel").textContent = "Running...";
+  $("status").textContent = "Executing on the real pool and database...";
   resetPanels();
   const data = await (await fetch("/api/run?name=" + current.name)).json();
   if (token !== playing) return;
   $("log").innerHTML = "";
-  $("max").textContent = data.max_connections;
+  $("max").textContent = $("maxPill").textContent = data.max_connections;
   $("status").textContent = "Replaying what happened...";
+  setPlaying(true);
 
   // One time scale for the whole scenario, so a faster phase really looks faster.
-  // Capped so a 26 ms phase is not stretched into slow motion.
+  // Capped so a very short phase is not stretched into slow motion.
   const longest = Math.max(...data.phases.map((p) => compressedLength(p.events)));
   const scale = Math.min(60, 9000 / Math.max(longest, 1));
   const instant = params.get("instant");
 
   for (let i = 0; i < data.phases.length; i++) {
     const phase = data.phases[i];
-    $("phaseTitle").textContent = `Phase ${i + 1} of ${data.phases.length}: ${phase.title}`;
+    $("phaseStep").textContent = `Phase ${i + 1} of ${data.phases.length}`;
+    $("phaseTitle").textContent = phase.title;
     logLine("phase", phase.title, null);
+    ["reqs", "slots", "queue"].forEach((id) => { $(id).innerHTML = ""; });
     const state = freshState(phase, data.max_connections);
     render(state);
     await replay(phase, plan(phase.events, scale), state, token, instant);
     if (token !== playing) return;
     if (i < data.phases.length - 1 && !instant) await sleep(1500);
   }
+  setPlaying(false);
   showResults(data);
-  $("status").textContent = "Finished. Press Run again for a fresh run; timings vary a little each time.";
+  $("status").textContent = "Done. Run again for a fresh run; timings vary a little.";
+  $("runLabel").textContent = "Run again";
   $("run").disabled = false;
 }
 
@@ -261,14 +379,16 @@ function plan(events, scale) {
 }
 
 function replay(phase, times, state, token, instant) {
-  const speed = parseFloat($("speed").value);
   return new Promise((resolve) => {
     let i = 0;
-    const start = performance.now();
+    let elapsed = 0;
+    let last = performance.now();
     const tick = (nowMs) => {
       if (token !== playing) return resolve();
-      const elapsed = instant ? Infinity : (nowMs - start) * speed;
-      while (i < phase.events.length && times[i] <= elapsed) apply(state, phase.events[i++]);
+      elapsed += (nowMs - last) * speed; // speed can change mid replay
+      last = nowMs;
+      const limit = instant ? Infinity : elapsed;
+      while (i < phase.events.length && times[i] <= limit) apply(state, phase.events[i++]);
       $("clock").textContent = `real time ${Math.round(i ? phase.events[i - 1].t : 0)} ms`;
       render(state);
       if (i < phase.events.length) return requestAnimationFrame(tick);
@@ -293,7 +413,7 @@ function apply(s, e) {
     case "checkout": s.reqs.set(e.req, "waiting"); s.queue.push(e.req); break;
     case "connect":
       s.reqs.set(e.req, "connecting"); dequeue(e.req);
-      s.conns.push({ id: null, state: "connecting", req: e.req });
+      s.conns.push({ key: "pending-" + e.req, id: null, state: "connecting", req: e.req });
       break;
     case "connected": {
       const c = s.conns.find((x) => x.id === null && x.req === e.req);
@@ -341,29 +461,45 @@ function logLine(cls, text, t) {
   $("log").scrollTop = $("log").scrollHeight;
 }
 
+// Keyed update: existing elements are kept and only changed, so their CSS
+// animations keep running instead of restarting on every frame.
+function sync(container, items, empty) {
+  const byKey = new Map([...container.children].filter((el) => el.dataset.key).map((el) => [el.dataset.key, el]));
+  const keep = new Set(items.map((it) => it.key));
+  byKey.forEach((el, k) => { if (!keep.has(k)) el.remove(); });
+  container.querySelectorAll(".empty").forEach((el) => el.remove());
+  items.forEach((it, idx) => {
+    let el = byKey.get(it.key);
+    if (!el) { el = document.createElement("div"); el.dataset.key = it.key; }
+    if (el.className !== it.cls) el.className = it.cls;
+    if (el.innerHTML !== it.html) el.innerHTML = it.html;
+    if (container.children[idx] !== el) container.insertBefore(el, container.children[idx] || null);
+  });
+  if (!items.length && empty) container.innerHTML = `<span class="empty">${empty}</span>`;
+}
+
 const LABEL = { idle: "idle, ready", busy: "in use", connecting: "handshake...", zombie: "closed by DB, pool unaware", dead: "dead" };
 
 function render(s) {
-  const chip = (r, st) => `<div class="chip ${st}">${r}</div>`;
-  $("reqs").innerHTML = [...s.reqs].map(([r, st]) => chip(r, st)).join("") || '<span class="empty">No requests yet.</span>';
+  sync($("reqs"), [...s.reqs].map(([r, st]) => ({ key: r, cls: `chip ${st}`, html: r })), "No requests yet.");
 
   const pooled = s.mode === "pool";
-  $("midTitle").textContent = pooled ? `Pool (size ${s.size})` : "No pool";
+  $("midTitle").textContent = pooled ? `Pool of ${s.size}` : "No pool";
   $("midHint").textContent = pooled
     ? "Connections kept open and shared. Dashed circles are slots not opened yet."
     : "Each request dials its own connection and hangs up when done.";
-  $("nopool").innerHTML = pooled ? "" : '<div class="nopool">Without a pool every request pays the handshake, and nothing stops them all hitting the database at once.</div>';
+  const noPool = pooled ? "" : '<div class="nopool">Without a pool every request pays the handshake, and nothing stops them all hitting the database at once.</div>';
+  if ($("nopool").innerHTML !== noPool) $("nopool").innerHTML = noPool;
   $("queueBox").style.display = pooled ? "" : "none";
 
-  const slot = (c) => {
+  const slots = s.conns.map((c) => {
     const who = c.req && (c.state === "busy" || c.state === "connecting") ? `<small class="who">${c.req}</small>` : "";
-    return `<div class="slot ${c.state}"><div class="dot">${c.id ? "#" + c.id : "..."}</div><small>${LABEL[c.state]}</small>${who}</div>`;
-  };
-  let html = s.conns.map(slot).join("");
-  if (pooled) for (let i = s.conns.length; i < s.size; i++) html += '<div class="slot"><div class="dot"></div><small>empty slot</small></div>';
-  $("slots").innerHTML = html || '<span class="empty">No connections open.</span>';
+    return { key: c.key || "c" + c.id, cls: `slot ${c.state}`, html: `<div class="dot">${c.id ? "#" + c.id : ""}</div><small>${LABEL[c.state]}</small>${who}` };
+  });
+  if (pooled) for (let i = s.conns.length; i < s.size; i++) slots.push({ key: "empty" + i, cls: "slot", html: '<div class="dot"></div><small>empty slot</small>' });
+  sync($("slots"), slots, "No connections open.");
 
-  $("queue").innerHTML = s.queue.map((r) => chip(r, "waiting")).join("") || '<span class="empty">Nobody waiting.</span>';
+  sync($("queue"), s.queue.map((r) => ({ key: "q" + r, cls: "chip waiting", html: r })), "Nobody waiting.");
   $("qcount").textContent = s.queue.length;
 
   $("open").textContent = s.open;
@@ -374,11 +510,32 @@ function render(s) {
   $("meter").classList.toggle("full", s.open >= s.max);
 }
 
+const problems = (p) => (p.results.refused || 0) + (p.results.timeout || 0) + (p.results.failed || 0);
+
+function highlights(data) {
+  const ph = data.phases;
+  if (ph.length === 2) {
+    const [a, b] = ph;
+    const out = [];
+    if (a.elapsed_ms / b.elapsed_ms >= 1.5) out.push({ v: `${(a.elapsed_ms / b.elapsed_ms).toFixed(1)}x`, k: `faster (${Math.round(a.elapsed_ms)} to ${Math.round(b.elapsed_ms)} ms)`, win: true });
+    if (a.db.accepted !== b.db.accepted) out.push({ v: `${a.db.accepted} → ${b.db.accepted}`, k: "connections opened" });
+    if (problems(a) !== problems(b)) out.push({ v: `${problems(a)} → ${problems(b)}`, k: "requests that failed", win: problems(b) < problems(a) && !out.some((o) => o.win) });
+    if (a.db.peak !== b.db.peak) out.push({ v: `${a.db.peak} → ${b.db.peak}`, k: "peak connections" });
+    return out;
+  }
+  const p = ph[0];
+  return [
+    { v: p.results.done || 0, k: "got a connection", win: true },
+    { v: problems(p), k: "timed out instead of hanging" },
+    { v: p.db.peak, k: "peak connections" },
+  ];
+}
+
 function showResults(data) {
   const longest = Math.max(...data.phases.map((p) => p.elapsed_ms));
+  const hl = highlights(data).map((h) => `<div class="hl${h.win ? " win" : ""}"><div class="v">${h.v}</div><div class="k">${h.k}</div></div>`).join("");
   const rows = data.phases.map((p) => {
-    const r = p.results;
-    const bad = (r.refused || 0) + (r.timeout || 0) + (r.failed || 0);
+    const bad = problems(p);
     return `<tr>
       <td>${p.title}<div class="bar" style="width:${Math.max(2, (p.elapsed_ms / longest) * 100)}%"></div></td>
       <td class="num">${Math.round(p.elapsed_ms)} ms</td>
@@ -387,8 +544,9 @@ function showResults(data) {
       <td class="num" style="color:${bad ? "var(--red)" : "inherit"}">${bad}</td>
     </tr>`;
   }).join("");
-  $("results").innerHTML = `<table>
-      <tr><th>Phase</th><th>Time</th><th>Connections opened</th><th>Peak open</th><th>Problems</th></tr>${rows}
+  $("results").innerHTML = `<div class="highlights">${hl}</div>
+    <table>
+      <tr><th>Phase</th><th>Time</th><th>Opened</th><th>Peak</th><th>Failed</th></tr>${rows}
     </table>
     <div class="take"><b>Takeaway:</b> ${data.takeaway}</div>`;
 }
