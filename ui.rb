@@ -142,7 +142,7 @@ SCENARIOS = {
     title: "Burst: pool limits",
     what: "30 requests arrive at the same moment. The database accepts at most " \
           "#{MAX_CONNECTIONS} connections. Each query takes 300 ms.",
-    watch: "Red refused requests without a pool. With a pool, a queue forms instead and everyone gets served.",
+    watch: "Pink refused requests without a pool. With a pool, a queue forms instead and everyone gets served.",
     run: lambda do
       direct = phase("Without a pool", mode: "direct") do |rec|
         concurrently(30) { |req| direct_request(rec, req, 300) }
